@@ -382,20 +382,20 @@ inline void TiledLighting(inout Surface surface, inout Lighting lighting, uint f
 	}
 #endif // TRANSPARENT
 
+	// taking the dominant light direction from L1 stored in prob and then used for spec highlights in GetSpecular
+	// there is not enough frequency to rpresent a valid light direction, so its been removed
+	// majercik is a seperate half res wavefront ray trace for first bounce spec, then probe after, never using a dominant direction from L1SH 
+	// https://x.com/EmpBB/status/1211711784870039552
+
 	[branch]
 	if (GetScene().ddgi.probe_buffer >= 0)
 	{
-		// Note: even if GI is already applied, the dominant light dir is still computed by this!
 		half3 irradiance = ddgi_sample_irradiance(surface.P, surface.N, surface.dominant_lightdir, surface.dominant_lightcolor);
 		if (!surface.IsGIApplied())
 		{
 			lighting.indirect.diffuse = irradiance;
 			surface.SetGIApplied(true);
 		}
-		
-		SurfaceToLight surface_to_light;
-		surface_to_light.create(surface, surface.dominant_lightdir);
-		lighting.indirect.specular += max(0, BRDF_GetSpecular(surface, surface_to_light) * (float3)surface.dominant_lightcolor); // casting dominant_lightcolor to float3 fixes DDGI color overblown in DX12 when sky is black, I don't know why!
 	}
 	
 	[branch]
