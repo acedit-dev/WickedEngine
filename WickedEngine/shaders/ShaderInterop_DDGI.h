@@ -171,15 +171,14 @@ half3 ddgi_sample_irradiance(in float3 P, in half3 N, inout half3 out_dominant_l
 		// It doesn't have to be cosine, but that is efficient to compute and we must clip to the tangent plane.
 		float3 probe_pos = ddgi_probe_position(probe_grid_coord);
 
-		// Bias the position at which visibility is computed; this
-		// avoids performing a shadow test *at* a surface, which is a
-		// dangerous location because that is exactly the line between
-		// shadowed and unshadowed. If the normal bias is too small,
-		// there will be light and dark leaks. If it is too large,
-		// then samples can pass through thin occluders to the other
-		// side (this can only happen if there are MULTIPLE occluders
-		// near each other, a wall surface won't pass through itself.)
-		half3 probe_to_point = P - probe_pos + N * 0.001;
+		// majercik et al gives the formula as 20 along surface normal and 80 on view direction
+		// scaled by 75 of the min prob spacing. wants you to start with 0.3. 
+		// a normal offset is not enough
+		// https://jcgt.org/published/0010/02/01/paper.pdf
+		float3 viewDir = normalize(GetCamera().position - P);
+		float minProbeSpacing = min3(ddgi_cellsize());
+		float3 biasVector = (N * 0.2 + viewDir * 0.8) * (0.75 * minProbeSpacing) * 0.3;
+		half3 probe_to_point = P - probe_pos + biasVector;
 		half3 dir = normalize(-probe_to_point);
 
 		// Compute the trilinear weights based on the grid cell vertex to smoothly
@@ -232,8 +231,9 @@ half3 ddgi_sample_irradiance(in float3 P, in half3 N, inout half3 out_dominant_l
 			// Need the max in the denominator because biasing can cause a negative displacement
 			half chebyshev_weight = variance / (variance + sqr(max(dist_to_probe - mean, 0.0)));
 
-			// Increase contrast in the weight 
-			chebyshev_weight = max(pow(chebyshev_weight, 3), 0.0);
+			// majerck is not using this at all, when using a single self shadow bias vector
+			// therefore this is no longer needed
+			chebyshev_weight = max(chebyshev_weight, 0.0);
 
 			weight *= (dist_to_probe <= mean) ? 1.0 : chebyshev_weight;
 		}
