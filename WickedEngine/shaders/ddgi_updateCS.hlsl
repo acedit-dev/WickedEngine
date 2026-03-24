@@ -226,6 +226,9 @@ void main(uint2 GTid : SV_GroupThreadID, uint2 Gid : SV_GroupID, uint groupIndex
 
 	GroupMemoryBarrierWithGroupSync();
 
+	// this assumes each texel subtends equal solid angle?
+	// jacobian varies between face center and the edge
+	// for l1 this may not matter, l2 it prob would
 	if (groupIndex == 0)
 	{
 		SH::L1_RGB radiance = SH::L1_RGB::Zero();
